@@ -1,16 +1,57 @@
-const express = require('express')
-const morgan = require('morgan')
+require("dotenv").config();
+const express = require("express");
+const morgan = require("morgan");
+const helmet = require("helmet");
+const cors = require("cors");
+const MOVIES = require("./movie-data.json");
 
-const app = express()
+console.log(process.env.API_TOKEN);
 
-app.use(morgan('dev'))
+const app = express();
 
-app.use((req, res) => {
-  res.send('Hello, world!')
-})
+app.use(morgan("dev"));
+app.use(helmet());
+app.use(cors());
 
-const PORT = 8000
+app.use(function validateBearerToken(req, res, next) {
+  const bearerToken = req.get("Authorization").split(" ")[1];
+  const apiToken = process.env.API_TOKEN;
+
+  console.log("validate bearer token middleware");
+
+  if (bearerToken !== apiToken) {
+    return res.status(401).json({error: "Unauthorized request"});
+  }
+  // move to the next middleware
+  next();
+});
+
+app.get("/movie", function handleGetMovie(req, res) {
+  let response = MOVIES;
+
+  if (req.query.genre) {
+    response = response.filter(movie =>
+      movie.genre.toLowerCase().includes(req.query.genre.toLowerCase())
+    );
+  }
+
+  if (req.query.country) {
+    response = response.filter(movie =>
+      movie.country.toLowerCase().includes(req.query.country.toLowerCase())
+    );
+  }
+
+  if (req.query.avg_vote) {
+    response = response.filter(
+      movie => Number(movie.avg_vote) >= Number(req.query.avg_vote)
+    );
+  }
+
+  res.json(response);
+});
+
+const PORT = 8000;
 
 app.listen(PORT, () => {
-  console.log(`Server listening at http://localhost:${PORT}`)
-})
+  console.log(`Server listening at http://localhost:${PORT}`);
+});
